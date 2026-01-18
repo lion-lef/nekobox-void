@@ -4,18 +4,24 @@
 # It uses the void-packages build system (xbps-src) to create native packages.
 #
 # Triggered on:
+# - Pull requests (for CI testing)
 # - Git tag pushes (for releases)
 # - Manual workflow dispatch (for testing)
 #
 # Build matrix:
 # - x86_64 (glibc): Standard 64-bit Intel/AMD
 # - x86_64-musl: 64-bit with musl libc
-# - aarch64 (glibc): 64-bit ARM
-# - aarch64-musl: 64-bit ARM with musl libc
+#
+# Note: aarch64 cross-compilation is disabled due to Qt6 QML import scanner
+# binary compatibility issues (cannot execute aarch64 binaries on x86_64 host).
 
 name: Build NekoBox for Void Linux
 
 on:
+  pull_request:
+    branches:
+      - main
+      - master
   push:
     tags:
       - '*'
@@ -31,15 +37,14 @@ jobs:
     strategy:
       # Allow all builds to complete even if one fails
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 2
       matrix:
         include:
           # Native builds (same arch for host and target)
           - { host: x86_64, target: x86_64 }
           - { host: x86_64-musl, target: x86_64-musl }
-          # Cross-compilation builds (x86_64 host building for aarch64)
-          - { host: x86_64, target: aarch64 }
-          - { host: x86_64-musl, target: aarch64-musl }
+          # Note: aarch64 cross-compilation disabled - Qt6 qmlimportscanner
+          # cannot run on x86_64 host (binary arch mismatch)
     runs-on: ubuntu-22.04
 
     steps:
@@ -83,6 +88,16 @@ jobs:
           echo "=== Copying nekobox package template ==="
           cp -rv nekobox-void/srcpkgs/nekobox void-packages/srcpkgs/
           ls -la void-packages/srcpkgs/nekobox/
+
+      # Register libthrift.so in shlibs (missing from upstream void-packages)
+      - name: Register libthrift shlib mapping
+        run: |
+          echo "=== Adding libthrift.so to common/shlibs ==="
+          # The thrift package in void-packages doesn't register its shlib
+          # We add it here so xbps-src can resolve the runtime dependency
+          echo "libthrift.so.0.22.0 thrift-0.22.0_1" >> void-packages/common/shlibs
+          echo "Added libthrift shlib mapping"
+          tail -5 void-packages/common/shlibs
 
       # Download and prepare xbps-static tools
       - name: Prepare xbps-static
@@ -205,8 +220,6 @@ jobs:
             ### Available Architectures
             - x86_64 (glibc)
             - x86_64-musl
-            - aarch64 (glibc)
-            - aarch64-musl
 
             ### Verify Package Integrity
             Compare the SHA256 checksum of your downloaded package with the checksums in `SHA256SUMS.txt`.
