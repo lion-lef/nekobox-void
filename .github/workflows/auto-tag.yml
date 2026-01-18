@@ -13,7 +13,9 @@
 #    - Updates the template file with new version and checksum
 #    - Creates a commit and pushes to main
 #    - Creates a git tag matching the upstream version
-# 4. The tag push triggers the build workflow automatically
+# 4. If versions match but tag is missing (initial setup):
+#    - Creates the tag for the current version to trigger first release
+# 5. The tag push triggers the build workflow automatically
 
 name: Auto-Tag New Releases
 
@@ -89,23 +91,24 @@ jobs:
             echo "update_needed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Check if tag exists
+      - name: Check if tag exists for current version
         id: tag_check
-        if: steps.check.outputs.update_needed == 'true'
         run: |
-          VERSION="${{ steps.upstream.outputs.version }}"
+          # Check if tag exists for the current template version
+          # This handles both new version updates and initial setup
+          CURRENT="${{ steps.current.outputs.version }}"
 
-          if git rev-parse "$VERSION" >/dev/null 2>&1; then
-            echo "Tag $VERSION already exists"
-            echo "tag_exists=true" >> $GITHUB_OUTPUT
+          if git rev-parse "$CURRENT" >/dev/null 2>&1; then
+            echo "Tag $CURRENT already exists"
+            echo "current_tag_exists=true" >> $GITHUB_OUTPUT
           else
-            echo "Tag $VERSION does not exist"
-            echo "tag_exists=false" >> $GITHUB_OUTPUT
+            echo "Tag $CURRENT does not exist"
+            echo "current_tag_exists=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Download and verify new source
         id: source
-        if: steps.check.outputs.update_needed == 'true' && steps.tag_check.outputs.tag_exists == 'false'
+        if: steps.check.outputs.update_needed == 'true'
         run: |
           VERSION="${{ steps.upstream.outputs.version }}"
 
@@ -131,7 +134,7 @@ jobs:
           echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
 
       - name: Update template file
-        if: steps.check.outputs.update_needed == 'true' && steps.tag_check.outputs.tag_exists == 'false'
+        if: steps.check.outputs.update_needed == 'true'
         run: |
           VERSION="${{ steps.upstream.outputs.version }}"
           CHECKSUM="${{ steps.source.outputs.checksum }}"
@@ -153,7 +156,7 @@ jobs:
           grep -E "^(version|revision|checksum)=" srcpkgs/nekobox/template
 
       - name: Commit and push changes
-        if: steps.check.outputs.update_needed == 'true' && steps.tag_check.outputs.tag_exists == 'false'
+        if: steps.check.outputs.update_needed == 'true'
         run: |
           VERSION="${{ steps.upstream.outputs.version }}"
 
@@ -164,8 +167,8 @@ jobs:
           git commit -m "Update nekobox to version $VERSION"
           git push origin main
 
-      - name: Create and push tag
-        if: steps.check.outputs.update_needed == 'true' && steps.tag_check.outputs.tag_exists == 'false'
+      - name: Create and push tag for new version
+        if: steps.check.outputs.update_needed == 'true'
         run: |
           VERSION="${{ steps.upstream.outputs.version }}"
 
@@ -176,18 +179,37 @@ jobs:
 
           echo "Tag $VERSION created and pushed successfully"
 
+      - name: Create missing tag for current version
+        id: create_missing_tag
+        if: steps.check.outputs.update_needed == 'false' && steps.tag_check.outputs.current_tag_exists == 'false'
+        run: |
+          VERSION="${{ steps.current.outputs.version }}"
+
+          echo "=== Creating missing tag $VERSION for current version ==="
+          echo "Template version $VERSION exists but tag is missing - creating tag now"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git tag -a "$VERSION" -m "NekoBox version $VERSION"
+          git push origin "$VERSION"
+
+          echo "Tag $VERSION created and pushed successfully"
+          echo "tag_created=true" >> $GITHUB_OUTPUT
+
       - name: Summary
         run: |
           echo "## Auto-Tag Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Upstream Version:** ${{ steps.upstream.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Current Version:** ${{ steps.current.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag Exists:** ${{ steps.tag_check.outputs.current_tag_exists }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Update Needed:** ${{ steps.check.outputs.update_needed }}" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ steps.check.outputs.update_needed }}" = "true" ] && [ "${{ steps.tag_check.outputs.tag_exists }}" = "false" ]; then
-            echo "- **Action:** Created tag ${{ steps.upstream.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ steps.tag_check.outputs.tag_exists }}" = "true" ]; then
-            echo "- **Action:** Tag already exists, skipped" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check.outputs.update_needed }}" = "true" ]; then
+            echo "- **Action:** Updated template and created tag ${{ steps.upstream.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.tag_check.outputs.current_tag_exists }}" = "false" ]; then
+            echo "- **Action:** Created missing tag ${{ steps.current.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- **Action:** No update needed" >> $GITHUB_STEP_SUMMARY
+            echo "- **Action:** No action needed - version and tag are up to date" >> $GITHUB_STEP_SUMMARY
           fi
