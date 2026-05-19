@@ -18,8 +18,8 @@ build_style=cmake
 # Configure CMake with Ninja generator and release build type. By default, BUILD_GO_PARTS and SKIP_UPDATER is ON.
 configure_args="-GNinja -DCMAKE_BUILD_TYPE=Release NKR_DEFAULT_VERSION=${version}"
 hostmakedepends="cmake ninja pkg-config qt6-base qt6-tools go thrift"
-makedepends="qt6-base-devel qt6-declarative-devel thrift-devel openssl-devel boost-devel lmdb-devel acl-devel libunistring-devel libcurl-devel libzstd-devel patchelf"
-depends="qt6-base qt6-wayland hicolor-icon-theme desktop-file-utils noto-fonts-emoji noto-fonts-ttf nekobox-core libcurl libunistring libzstd lmdb acl openssl"
+makedepends="qt6-base-devel qt6-declarative-devel thrift-devel openssl-devel boost-devel lmdb-devel acl-devel libunistring-devel libcurl-devel libzstd-devel patchelf leveldb-devel yaml-cpp-devel"
+depends="qt6-base qt6-wayland hicolor-icon-theme desktop-file-utils noto-fonts-emoji noto-fonts-ttf nekobox-core libcurl libunistring libzstd lmdb acl openssl leveldb yaml-cpp"
 short_desc="Cross-platform Qt proxy utility powered by sing-box"
 maintainer="NekoBox Void Contributors <noreply@github.com>"
 license="GPL-3.0-or-later"
