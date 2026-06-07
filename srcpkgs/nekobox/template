@@ -10,7 +10,7 @@
 # - Thrift is used for RPC communication between the frontend and core
 #
 pkgname=nekobox
-version=5.11.15
+version=5.11.16
 revision=1
 # The unified source tarball extracts to nekobox-unified-source-VERSION
 wrksrc="nekobox-unified-source-${version}"
@@ -25,7 +25,7 @@ maintainer="NekoBox Void Contributors <noreply@github.com>"
 license="GPL-3.0-or-later"
 homepage="https://github.com/qr243vbi/nekobox"
 distfiles="https://github.com/qr243vbi/nekobox/releases/download/${version}/${pkgname}-unified-source-${version}.tar.xz"
-checksum=c3e481a0154d58474bdc2f9bfbf8a7bc91df8d172e12e819556264b8eac07c97
+checksum=0835d5037b647e5cc26bae7de9eba848f628f95df8fb1f7614eacb27bdec9ae3
 
 # Build options - customize display backends
 build_options="wayland"
